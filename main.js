@@ -159,6 +159,10 @@ app.post("/search", (req, res) => {
     res.json(response);
 });
 
+app.use((req, res) => {
+    res.status(405).send("Method Not Allowed");
+});
+
 app.listen(opts.port, () => {
     console.log(`Server running at http://${opts.host}:${opts.port}/`);
 });
