@@ -85,6 +85,19 @@ app.get("/inventory", (req, res) => {
     res.json(inventory);
 });
 
+app.get("/inventory/:id", (req, res) => {
+    const id = Number(req.params.id);
+    const item = inventory.find(i => i.id === id);
+
+    if (!item) return res.status(404).send("Not found");
+    const result = {
+        ...item,
+        photo_url: item.photo ? `/inventory/${id}/photo` : null
+    };
+    res.json(result);
+});
+
+
 app.listen(opts.port, () => {
     console.log(`Server running at http://${opts.host}:${opts.port}/`);
 });
