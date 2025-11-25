@@ -144,10 +144,20 @@ app.delete("/inventory/:id", (req, res) => {
     if (index === -1) return res.status(404).send("Not found");
     inventory.splice(index, 1);
     saveInventory(inventory);
-    
+
     res.send("Deleted");
 });
 
+app.post("/search", (req, res) => {
+    const id = Number(req.body.id);
+    const addPhoto = req.body.has_photo === "yes";
+    const item = inventory.find(i => i.id === id);
+
+    if (!item) return res.status(404).send("Not found");
+    const response = { ...item };
+    if (!addPhoto) delete response.photo;
+    res.json(response);
+});
 
 app.listen(opts.port, () => {
     console.log(`Server running at http://${opts.host}:${opts.port}/`);
