@@ -1,46 +1,86 @@
-const { program } = require('commander');
-const http = require('http');
-const fs = require('fs');
-const path = require('path');
-const superagent = require('superagent');
+const express = require("express");
+const { program } = require("commander");
+const fs = require("fs");
+const path = require("path");
+const multer = require("multer");
 
 program
-   .option('-h, --host <host>', 'server host')
-   .option('-p, --port <port>', 'server port')
-   .option('-c, --cache <dir>', 'path to cache directory')
+    .option("-h, --host <host>", "server host")
+    .option("-p, --port <port>", "server port")
+    .option("-c, --cache <dir>", "cache directory");
 
 program.parse();
-const options = program.opts();
+const opts = program.opts();
 
-if (!options.host) {
+if (!opts.host) {
     console.error('Please, input host parameter');
     process.exit(1);
 }
 
-if (!options.port) {
+if (!opts.port) {
     console.error('Please, input port parameter');
     process.exit(1);
 }
 
-if (!options.cache) {
+if (!opts.cache) {
     console.error('Please, input directory parameter');
     process.exit(1);
 }
 
-const cacheDir = path.resolve(options.cache)
-
+const cacheDir = path.resolve(opts.cache);
 if (!fs.existsSync(cacheDir)) {
-    fs.mkdirSync(cacheDir, {recursive : true});
-    console.log(`Created cache directory ${cacheDir}`)
+    fs.mkdirSync(cacheDir, { recursive: true });
 } else {
     console.log(`Cache directory ${cacheDir} already exists`);
 }
 
-const server = http.createServer((req, res) => {
-    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end(`Server is running. Cache directory: ${cacheDir}`);
+const inventoryFile = path.join(cacheDir, "inventory.json");
+if (!fs.existsSync(inventoryFile)) {
+    fs.writeFileSync(inventoryFile, JSON.stringify([]));
+}
+
+function loadInventory() {
+    return JSON.parse(fs.readFileSync(inventoryFile, "utf8"));
+}
+
+function saveInventory(data) {
+    fs.writeFileSync(inventoryFile, JSON.stringify(data, null, 2));
+}
+
+let inventory = loadInventory();
+let nextID = inventory.length > 0 ? Math.max(...inventory.map(i => i.id)) + 1 : 1;
+
+const app = express();
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static("./"));
+
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, cacheDir),
+    filename: (req, file, cb) => {
+        const filename = `${Date.now()}-${file.originalname}`;
+        cb(null, filename);
+    }
+});
+const upload = multer({ storage });
+
+app.post("/register", upload.single("photo"), (req, res) => {
+    const name = req.body.inventory_name;
+    if (!name) {
+        return res.status(400).send("inventory_name is required");
+    }
+    const item = {
+        id: nextID++,
+        inventory_name: name,
+        description: req.body.description || "",
+        photo: req.file ? req.file.filename : null
+    };
+
+    inventory.push(item);
+    saveInventory(inventory);
+    res.status(201).json(item);
 });
 
-server.listen(Number(options.port), options.host, () => {
-    console.log(`Server is running at http://${options.host}:${options.port}/`);
-})
+app.listen(opts.port, () => {
+    console.log(`Server running at http://${opts.host}:${opts.port}/`);
+});
