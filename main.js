@@ -130,15 +130,23 @@ app.put("/inventory/:id/photo", upload.single("photo"), (req, res) => {
     const item = inventory.find(i => i.id === id);
 
     if (!item) return res.status(404).send("Not found");
-
     if (!req.file) return res.status(400).send("Missing photo");
 
     item.photo = req.file.filename;
     saveInventory(inventory);
-
     res.json(item);
 });
 
+app.delete("/inventory/:id", (req, res) => {
+    const id = Number(req.params.id);
+    const index = inventory.findIndex(i => i.id === id);
+
+    if (index === -1) return res.status(404).send("Not found");
+    inventory.splice(index, 1);
+    saveInventory(inventory);
+    
+    res.send("Deleted");
+});
 
 
 app.listen(opts.port, () => {
