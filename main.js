@@ -109,6 +109,22 @@ app.put("/inventory/:id", (req, res) => {
     res.json(item);
 });
 
+app.get("/inventory/:id/photo", (req, res) => {
+    const id = Number(req.params.id);
+    const item = inventory.find(i => i.id === id);
+
+    if (!item || !item.photo) {
+        return res.status(404).send("Photo not found");
+    }
+    const imgPath = path.join(cacheDir, item.photo);
+
+    if (!fs.existsSync(imgPath)) {
+        return res.status(404).send("Photo file missing");
+    }
+    res.setHeader("Content-Type", "image/jpeg");
+    res.sendFile(imgPath);
+});
+
 
 app.listen(opts.port, () => {
     console.log(`Server running at http://${opts.host}:${opts.port}/`);
