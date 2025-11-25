@@ -51,6 +51,28 @@ let inventory = loadInventory();
 let nextID = inventory.length > 0 ? Math.max(...inventory.map(i => i.id)) + 1 : 1;
 
 const app = express();
+
+const swaggerJsdoc = require("swagger-jsdoc");
+const swaggerUi = require("swagger-ui-express");
+
+const swaggerOptions = {
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "Inventory API",
+      version: "1.0.0",
+      description: "API сервіс для управління інвентаризацією пристроїв"
+    },
+    servers: [
+      { url: `http://${opts.host}:${opts.port}` }
+    ]
+  },
+  apis: [__filename], 
+};
+
+const swaggerSpec = swaggerJsdoc(swaggerOptions);
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("./"));
@@ -63,6 +85,37 @@ const storage = multer.diskStorage({
     }
 });
 const upload = multer({ storage });
+
+/**
+ * @swagger
+ * /register:
+ *   post:
+ *     summary: Реєстрація нового пристрою
+ *     consumes:
+ *       - multipart/form-data
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               inventory_name:
+ *                 type: string
+ *                 description: Ім'я пристрою
+ *               description:
+ *                 type: string
+ *                 description: Опис пристрою
+ *               photo:
+ *                 type: string
+ *                 format: binary
+ *                 description: Фото пристрою
+ *     responses:
+ *       201:
+ *         description: Пристрій успішно додано
+ *       400:
+ *         description: Не вказано inventory_name
+ */
 
 app.post("/register", upload.single("photo"), (req, res) => {
     const name = req.body.inventory_name;
@@ -81,9 +134,38 @@ app.post("/register", upload.single("photo"), (req, res) => {
     res.status(201).json(item);
 });
 
+/**
+ * @swagger
+ * /inventory:
+ *   get:
+ *     summary: Отримати список всіх інвентаризованих речей
+ *     responses:
+ *       200:
+ *         description: Список пристроїв
+ */
+
 app.get("/inventory", (req, res) => {
     res.json(inventory);
 });
+
+/**
+ * @swagger
+ * /inventory/{id}:
+ *   get:
+ *     summary: Отримати інформацію про конкретну річ
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID пристрою
+ *     responses:
+ *       200:
+ *         description: Інформація про річ
+ *       404:
+ *         description: Річ не знайдена
+ */
 
 app.get("/inventory/:id", (req, res) => {
     const id = Number(req.params.id);
@@ -97,6 +179,36 @@ app.get("/inventory/:id", (req, res) => {
     res.json(result);
 });
 
+/**
+ * @swagger
+ * /inventory/{id}:
+ *   put:
+ *     summary: Оновити назву або опис інвентарної речі
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Ідентифікатор речі
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               inventory_name:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Обʼєкт успішно оновлений
+ *       404:
+ *         description: Річ з таким ID не знайдена
+ */
+
 app.put("/inventory/:id", (req, res) => {
     const id = Number(req.params.id);
     const item = inventory.find(i => i.id === id);
@@ -108,6 +220,30 @@ app.put("/inventory/:id", (req, res) => {
     saveInventory(inventory);
     res.json(item);
 });
+
+/**
+ * @swagger
+ * /inventory/{id}/photo:
+ *   get:
+ *     summary: Отримати фото інвентарної речі
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Ідентифікатор речі
+ *     responses:
+ *       200:
+ *         description: Повертає зображення
+ *         content:
+ *           image/jpeg:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         description: Фото або річ не знайдені
+ */
 
 app.get("/inventory/:id/photo", (req, res) => {
     const id = Number(req.params.id);
@@ -125,6 +261,37 @@ app.get("/inventory/:id/photo", (req, res) => {
     res.sendFile(imgPath);
 });
 
+/**
+ * @swagger
+ * /inventory/{id}/photo:
+ *   put:
+ *     summary: Оновити фото інвентарної речі
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID речі
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               photo:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Фото оновлено
+ *       400:
+ *         description: Файл не вказаний або невірний формат
+ *       404:
+ *         description: Річ з таким ID не знайдена
+ */
+
 app.put("/inventory/:id/photo", upload.single("photo"), (req, res) => {
     const id = Number(req.params.id);
     const item = inventory.find(i => i.id === id);
@@ -137,6 +304,25 @@ app.put("/inventory/:id/photo", upload.single("photo"), (req, res) => {
     res.json(item);
 });
 
+/**
+ * @swagger
+ * /inventory/{id}:
+ *   delete:
+ *     summary: Видалити інвентарну річ
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Ідентифікатор речі для видалення
+ *     responses:
+ *       200:
+ *         description: Річ успішно видалена
+ *       404:
+ *         description: Річ з таким ID не знайдена
+ */
+
 app.delete("/inventory/:id", (req, res) => {
     const id = Number(req.params.id);
     const index = inventory.findIndex(i => i.id === id);
@@ -147,6 +333,32 @@ app.delete("/inventory/:id", (req, res) => {
 
     res.send("Deleted");
 });
+
+/**
+ * @swagger
+ * /search:
+ *   post:
+ *     summary: Пошук інвентарної речі за ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/x-www-form-urlencoded:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: integer
+ *               has_photo:
+ *                 type: string
+ *                 enum: ["yes", "no"]
+ *             required:
+ *               - id
+ *     responses:
+ *       200:
+ *         description: Інформація про знайдену річ
+ *       404:
+ *         description: Річ не знайдена
+ */
 
 app.post("/search", (req, res) => {
     const id = Number(req.body.id);
