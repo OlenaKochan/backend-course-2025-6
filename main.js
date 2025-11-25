@@ -97,6 +97,18 @@ app.get("/inventory/:id", (req, res) => {
     res.json(result);
 });
 
+app.put("/inventory/:id", (req, res) => {
+    const id = Number(req.params.id);
+    const item = inventory.find(i => i.id === id);
+
+    if (!item) return res.status(404).send("Not found");
+    if (req.body.inventory_name) item.inventory_name = req.body.inventory_name;
+    if (req.body.description) item.description = req.body.description;
+
+    saveInventory(inventory);
+    res.json(item);
+});
+
 
 app.listen(opts.port, () => {
     console.log(`Server running at http://${opts.host}:${opts.port}/`);
