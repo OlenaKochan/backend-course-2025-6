@@ -145,6 +145,7 @@ app.post("/register", upload.single("photo"), (req, res) => {
  */
 
 app.get("/inventory", (req, res) => {
+    
     res.json(inventory);
 });
 
@@ -363,6 +364,17 @@ app.delete("/inventory/:id", (req, res) => {
 app.post("/search", (req, res) => {
     const id = Number(req.body.id);
     const addPhoto = req.body.has_photo === "yes";
+    const item = inventory.find(i => i.id === id);
+
+    if (!item) return res.status(404).send("Not found");
+    const response = { ...item };
+    if (!addPhoto) delete response.photo;
+    res.json(response);
+});
+
+app.get("/search", (req, res) => {
+    const id = Number(req.query.id);
+    const addPhoto = req.query.has_photo === "yes";
     const item = inventory.find(i => i.id === id);
 
     if (!item) return res.status(404).send("Not found");
